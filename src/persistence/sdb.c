@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include "include/sdb.h"
+#include "sdb.h"
 
 pthread_mutex_t sdb_mutex = PTHREAD_MUTEX_INITIALIZER;
 const char *SDB_FILE = "database.sdb";

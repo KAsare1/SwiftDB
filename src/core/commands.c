@@ -1,21 +1,19 @@
 #include "commands.h"
 #include "protocol.h"
-#include "include/uthash.h"
-#include "include/replication.h"
-#include "include/master.h"
-#include "include/slave.h"
-#include "include/sync.h"
-#include "include/replconf.h"
-#include "include/buffer.h"
-#include "include/sdb.h"
-#include "include/sdb.h"
+#include "../replication/replication.h"
+#include "../replication/master.h"
+#include "../replication/slave.h"
+#include "../replication/sync.h"
+#include "../replication/replconf.h"
+#include "../replication/buffer.h" 
+#include "../persistence/sdb.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <time.h>
 #include <pthread.h>
-
+#include "../../include/uthash.h"
 
 
 static pthread_mutex_t set_table_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -108,7 +106,7 @@ static int is_key_expired(struct SetEntry *entry);
 static void delete_key(struct SetEntry *entry);
 
 
-extern ReplicationState *repl_state; 
+// extern ReplicationState *repl_state; 
 
 // Register a command
 // Precompute uppercase command names during registration
@@ -155,12 +153,12 @@ void handle_set(int client_socket, RedisCommand *cmd) {
         return;
     }
 
-    // Check if we're a slave and this isn't from master
-    if (repl_state && repl_state->role == ROLE_SLAVE && 
-        !repl_state->processing_master_command) {
-        send_redis_error(client_socket, "READONLY You can't write against a read only slave.");
-        return;
-    }
+    // // Check if we're a slave and this isn't from master
+    // if (repl_state && repl_state->role == ROLE_SLAVE && 
+    //     !repl_state->processing_master_command) {
+    //     send_redis_error(client_socket, "READONLY You can't write against a read only slave.");
+    //     return;
+    // }
 
     const char *key = cmd->argv[1].data;
     const char *value = cmd->argv[2].data;
@@ -229,9 +227,9 @@ void handle_set(int client_socket, RedisCommand *cmd) {
     pthread_mutex_unlock(&set_table_mutex);
 
     // If we're the master, propagate to slaves
-    if (repl_state && repl_state->role == ROLE_MASTER) {
-        propagate_command_to_slaves(cmd);
-    }
+    // if (repl_state && repl_state->role == ROLE_MASTER) {
+    //     propagate_command_to_slaves(cmd);
+    // }
 
     send_redis_string(client_socket, "OK");
 }
@@ -1055,13 +1053,13 @@ void handle_select(int client_socket, RedisCommand *cmd) {
 // }
 
 
-void handle_sync(int client_socket, RedisCommand *cmd) {
-    handle_sync_command(client_socket, cmd);
-}
+// void handle_sync(int client_socket, RedisCommand *cmd) {
+//     handle_sync_command(client_socket, cmd);
+// }
 
-void handle_psync(int client_socket, RedisCommand *cmd) {
-    handle_psync_command(client_socket, cmd);
-}
+// void handle_psync(int client_socket, RedisCommand *cmd) {
+//     handle_psync_command(client_socket, cmd);
+// }
 
 
 
@@ -1089,9 +1087,9 @@ void register_commands() {
     register_command("BULK_GET", handle_bulk_get);
     register_command("FLUSHALL", handle_flushall);  
     register_command("BACKUP", handle_backup);
-    register_command("SYNC", handle_sync);
-    register_command("PSYNC", handle_psync);
-    register_command("REPLCONF", handle_replconf);
+    // register_command("SYNC", handle_sync);
+    // register_command("PSYNC", handle_psync);
+    // register_command("REPLCONF", handle_replconf);
     // register_command("SWAPDB", handle_swapdb);
     register_command("SELECT", handle_select);
     // register_command("TS.ADD", handle_ts_add);

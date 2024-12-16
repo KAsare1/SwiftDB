@@ -1,7 +1,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "include/protocol.h"
+#include "protocol.h"
 
 static int parse_length(char **ptr) {
     char *endptr;

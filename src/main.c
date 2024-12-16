@@ -10,25 +10,25 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <pthread.h>
-#include "Server.h"
-#include "include/protocol.h"
-#include "include/commands.h"
-#include "include/sdb.h"
-#include "include/replication.h"
-#include "include/master.h"
-#include "include/slave.h"
+#include "./networking/Server.h"
+#include "./core/protocol.h"
+#include "./core/commands.h"
+#include "./persistence/sdb.h"
+#include "./replication/replication.h"
+#include "./replication/master.h"
+#include "./replication/slave.h"
 
 pthread_mutex_t cleanup_mutex = PTHREAD_MUTEX_INITIALIZER;
 volatile sig_atomic_t cleanup_running = 1;
 
-ReplicationConfig repl_config;
-ReplicationState *repl_state = NULL;
+// ReplicationConfig repl_config;
+// ReplicationState *repl_state = NULL;
 
 
 void server_shutdown();
 void handle_zombies(int sig);
 void handle_shutdown(int sig);
-void *replication_heartbeat(void *arg);
+// void *replication_heartbeat(void *arg);
 
 
 
@@ -51,10 +51,10 @@ void handle_client(int client_socket) {
     printf("Handling client (PID: %d)\n", getpid());
 
     // Check if this is a replication connection
-    if (repl_state && repl_state->role == ROLE_MASTER) {
-        handle_slave_connection(client_socket);
-        return;
-    }
+    // if (repl_state && repl_state->role == ROLE_MASTER) {
+    //     handle_slave_connection(client_socket);
+    //     return;
+    // }
 
     while (1) {
         memset(buffer, 0, sizeof(buffer));
@@ -124,22 +124,22 @@ void server_shutdown() {
     pthread_mutex_unlock(&cleanup_mutex);
     
     // Cleanup replication
-    if (repl_state) {
-        if (repl_state->role == ROLE_MASTER) {
-            cleanup_master(repl_state);
-        } else if (repl_state->role == ROLE_SLAVE) {
-            cleanup_slave(repl_state);
-        }
+    // if (repl_state) {
+    //     if (repl_state->role == ROLE_MASTER) {
+    //         cleanup_master(repl_state);
+    //     } else if (repl_state->role == ROLE_SLAVE) {
+    //         cleanup_slave(repl_state);
+    //     }
         
-        // Cleanup replication config
-        if (repl_state->config) {
-            free(repl_state->config->master_host);
-            free(repl_state->config->replication_id);
-            free(repl_state->config);
-        }
+    //     // Cleanup replication config
+    //     if (repl_state->config) {
+    //         free(repl_state->config->master_host);
+    //         free(repl_state->config->replication_id);
+    //         free(repl_state->config);
+    //     }
         
-        free(repl_state);
-    }
+    //     free(repl_state);
+    // }
 
     sleep(1);
     cleanup_commands();
@@ -172,39 +172,39 @@ void start_background_cleanup() {
 }
 
 
-void init_replication_mode(int argc, char *argv[]) {
-    // Default to master mode
-        ReplicationConfig *config = malloc(sizeof(ReplicationConfig));
-    if (!config) {
-        fprintf(stderr, "Failed to allocate replication config\n");
-        exit(EXIT_FAILURE);
-    }
+// void init_replication_mode(int argc, char *argv[]) {
+//     // Default to master mode
+//         ReplicationConfig *config = malloc(sizeof(ReplicationConfig));
+//     if (!config) {
+//         fprintf(stderr, "Failed to allocate replication config\n");
+//         exit(EXIT_FAILURE);
+//     }
 
 
-    config->role = ROLE_MASTER;
-    config->master_host = NULL;
-    config->master_port = 0;
-    config->replication_timeout = 60;
-    config->replication_id = strdup("master-01");
-    config->replication_offset = 0;
+//     config->role = ROLE_MASTER;
+//     config->master_host = NULL;
+//     config->master_port = 0;
+//     config->replication_timeout = 60;
+//     config->replication_id = strdup("master-01");
+//     config->replication_offset = 0;
     
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--slave") == 0 && i + 2 < argc) {
-            config->role = ROLE_SLAVE;
-            config->master_host = strdup(argv[i + 1]);
-            config->master_port = atoi(argv[i + 2]);
-            break;
-        }
-    }
+//     for (int i = 1; i < argc; i++) {
+//         if (strcmp(argv[i], "--slave") == 0 && i + 2 < argc) {
+//             config->role = ROLE_SLAVE;
+//             config->master_host = strdup(argv[i + 1]);
+//             config->master_port = atoi(argv[i + 2]);
+//             break;
+//         }
+//     }
 
 
-    pthread_t heartbeat_thread;
-    pthread_create(&heartbeat_thread, NULL, replication_heartbeat, NULL);
-    pthread_detach(heartbeat_thread);
+//     pthread_t heartbeat_thread;
+//     pthread_create(&heartbeat_thread, NULL, replication_heartbeat, NULL);
+//     pthread_detach(heartbeat_thread);
 
-    init_replication(&repl_config);
-}
+//     init_replication(&repl_config);
+// }
 
 
 
@@ -226,19 +226,19 @@ int main(int argc, char *argv[]) {
     }
 
 
-    init_replication_mode(argc, argv);
+    // init_replication_mode(argc, argv);
 
 
     register_commands();
 
     start_background_cleanup();
 
-    pthread_t heartbeat_thread;
-    if (pthread_create(&heartbeat_thread, NULL, replication_heartbeat, NULL) != 0) {
-        fprintf(stderr, "Error: Failed to start heartbeat thread.\n");
-        return EXIT_FAILURE;
-    }
-    pthread_detach(heartbeat_thread);
+    // pthread_t heartbeat_thread;
+    // if (pthread_create(&heartbeat_thread, NULL, replication_heartbeat, NULL) != 0) {
+    //     fprintf(stderr, "Error: Failed to start heartbeat thread.\n");
+    //     return EXIT_FAILURE;
+    // }
+    // pthread_detach(heartbeat_thread);
 
 
     struct Server server = server_constructor(
@@ -246,17 +246,17 @@ int main(int argc, char *argv[]) {
         SOCK_STREAM, 
         0, 
         INADDR_ANY, 
-        repl_config.role == ROLE_SLAVE ? 6380 : 6379,  
+        6379,  
         10, 
         launch
     );
     
-    if (repl_config.role == ROLE_SLAVE) {
-        if (connect_to_master() != 0) {
-            fprintf(stderr, "Failed to connect to master. Exiting.\n");
-            return EXIT_FAILURE;
-        }
-    }
+    // if (repl_config.role == ROLE_SLAVE) {
+    //     if (connect_to_master() != 0) {
+    //         fprintf(stderr, "Failed to connect to master. Exiting.\n");
+    //         return EXIT_FAILURE;
+    //     }
+    // }
 
     server.launch(&server);
 
